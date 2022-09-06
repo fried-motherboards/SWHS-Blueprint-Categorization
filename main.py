@@ -6,6 +6,8 @@ import datetime
 import os
 import subprocess
 import shutil
+import json
+import glob
 
 
 class Bundle:
@@ -46,9 +48,11 @@ class Bundle:
                     click.echo(
                         str(i) + '.) ' + options[i]
                     )
-                building_choice = int(click.prompt(
-                    'Enter the associated building this bundle applies to'
-                ))
+                building_choice = int(
+                    click.prompt(
+                        'Enter the associated building this bundle applies to'
+                    ).replace(" ", "-")
+                )
                 # Determines if the user enters a valid option
                 if building_choice > 9 or building_choice < 0:
                     click.echo(
@@ -88,6 +92,8 @@ class Bundle:
             uuid.uuid4(),  # A unique ID for internal references later on
             click.prompt(
                 "Enter the name of the project that is the subject of these prints"
+            ).replace(
+                " ", "-"
             ),  # A human-readable to be used for filenames and memorability
             get_building(),  # A human-readable associated building
             get_date(),  # A valid date and time in YYYY-MM-DD format
@@ -108,9 +114,13 @@ class Blueprint:
         return Blueprint(
             click.prompt(
                 "Enter the drawing name as listed on the blueprint"
-            ),  # A human-readable title assigned by the architects on the print
+            ).replace(" ", "-"),  # A human-readable title assigned by the architects on the print
             click.prompt(
                 "Enter the sheet number as listed on the blueprint"
+            ).replace(
+                "/", "-of-"
+            ).replace(
+                " ", "-"
             )  # The sheet number assigned by the architects on the print
         )
 
@@ -125,15 +135,17 @@ def main():
 
     first_run = True  # Indicates that this is the first loop iteration
 
-    for scan in os.scandir(config.input_scans_location):
+    for scan in sorted(
+            glob.glob(os.path.join(config.input_scans_location, '*.PDF')),
+            key=os.path.getmtime):
         # Ignore other directories and files not ending in ".PDF"
-        if scan.is_dir() or ".PDF" not in scan.name:
+        """if scan.is_dir() or ".PDF" not in scan.name:
             click.echo(
                 f"Ignoring {scan.name}, is either a directory or not a target file"
             )
             continue
         else:
-            click.echo("Processing next file in line, filename " + scan.name)
+            click.echo("Processing next file in line, filename " + scan.name)"""
 
         # Displays the file in question as a preview process
         file_view = subprocess.Popen([config.default_viewer, scan],
@@ -147,19 +159,32 @@ def main():
         if first_run:
             # Notes that the first run condition has now been satisfied
             first_run = False
+            # Backs up the last processed json log from a potential past run
+            try:
+                shutil.copy(config.log_file, config.backup_log_file)
+            except FileNotFoundError:
+                click.echo("No log files found, new ones will be generated")
             # Starts collecting bundle info for the first time
             current_bundle = Bundle.get_bundle_info()
             # Starts collecting blueprint info for the first time
             current_blueprint = Blueprint.get_blueprint_info()
             # Increments total page count of the bundle in question
             current_bundle.page_count = current_bundle.page_count + 1
+            click.echo(
+                f"Page count for the project {current_bundle.project_name} is now "
+                f"{current_bundle.page_count}"
+            )
             # Associates bundle page number with blueprint drawing title by
             # updating the dictionary with a page:drawing keypair
             current_bundle.contents.update(
                 {current_bundle.page_count: current_blueprint.drawing_title}
             )
+            click.echo(
+                f"Pages associated with this bundle: {current_bundle.contents}"
+            )
             # Kills preview process
             subprocess.Popen.kill(file_view)
+            continue
         else:
             # Stores the last processed bundle and blueprint objects into respective
             # buffers known as "last_bundle" and "last_blueprint" unless for any reason
@@ -184,10 +209,24 @@ def main():
 
             # If it ain't part of the current bundle, make a new one
             while not continue_bundle:
+                # First we log the bundle data collected into a json file before being overwritten
+                bundle_data = {
+                    "UUID": str(current_bundle.bundle_uuid),
+                    "Date": str(current_bundle.date),
+                    "Building": current_bundle.building,
+                    "Pages": current_bundle.page_count,
+                    "Contents": current_bundle.contents
+                }
+                print(f"DEBUG BUNDLE LOG PREVIEW {bundle_data}")
+                with open(config.log_file, 'a+') as file:
+                    json.dump(bundle_data, file, indent=4)
+
                 # Creates new instances of bundles and blueprints in their respective class
                 # and defaults to a continuation state that prompts the user to build up a
-                # defined bundle with information associated with displayed files
+                # defined bundle with information associated with displayed files.
+
                 current_bundle = Bundle.get_bundle_info()
+                continue_bundle = True
 
             # Starts collecting blueprint info
             current_blueprint = Blueprint.get_blueprint_info()
