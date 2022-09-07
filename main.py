@@ -182,6 +182,65 @@ def main():
             click.echo(
                 f"Pages associated with this bundle: {current_bundle.contents}"
             )
+            # Creates output directory structure based upon current bundle
+            # characteristics, then moves the now categorized blueprint into the final
+            # output directory, a combination of the first directory (named
+            # after the building the blueprint depicts), the subdirectory (named after
+            # the bundle's project name and date separated by an underscore), and the
+            # user-specified output directory as outlined in the config file.
+            directory = os.path.join(
+                config.output_scans_location, current_bundle.building
+            )
+            subdirectory = str(
+                str(current_bundle.date) + "_" + current_bundle.project_name
+            )
+            full_output_directory = os.path.join(
+                config.output_scans_location, directory, subdirectory
+            )
+            # Creates directories regardless if they exist
+            os.makedirs(full_output_directory, exist_ok=True)
+
+            # Moves the file currently being processed to the final output directory
+            # and renames the file as necessary with a trailing copy number
+            # depending on how many similar filenames exist
+
+            # NOTE TO SELF: Maybe also have this exist_check condition mark the
+            # scan that is a Blueprint class object as "potential duplicate"
+            # somehow for easier future sorting?
+            if os.path.isfile(
+                    os.path.join(
+                        full_output_directory,
+                        str(current_blueprint.sheet_number +
+                            "_" + current_blueprint.drawing_title)
+                    )
+            ):
+                file_exist_check = True
+                while file_exist_check is True:
+                    rename = 0
+                    new_scan_name = str(
+                        current_blueprint.drawing_title + "-copy" + str(rename)
+                    )
+                    rename = rename + 1
+                    print("Duplicate file detected, number " + str(rename))
+                    if not os.path.isfile(
+                            os.path.join(
+                                full_output_directory,
+                                str(current_blueprint.sheet_number +
+                                    "_" + new_scan_name)
+                            )
+                    ):
+                        scan_filename = new_scan_name
+                        file_exist_check = False
+            else:
+                scan_filename = current_blueprint.drawing_title
+
+            # noinspection PyUnboundLocalVariable
+            shutil.move(
+                scan, os.path.join(
+                    full_output_directory,
+                    str(current_blueprint.sheet_number + "_" + scan_filename + ".pdf")
+                )
+            )
             # Kills preview process
             subprocess.Popen.kill(file_view)
             continue
@@ -224,21 +283,46 @@ def main():
                 # Creates new instances of bundles and blueprints in their respective class
                 # and defaults to a continuation state that prompts the user to build up a
                 # defined bundle with information associated with displayed files.
-
                 current_bundle = Bundle.get_bundle_info()
                 continue_bundle = True
 
             # Starts collecting blueprint info
             current_blueprint = Blueprint.get_blueprint_info()
-            # Increments total page count of the bundle in question
+            # Increments total page count of the bundle in question, updates
+            # user on how many pages are categorized within the bundle so far
             current_bundle.page_count = current_bundle.page_count + 1
+            click.echo(
+                f"Page count for the project {current_bundle.project_name} is now "
+                f"{current_bundle.page_count}"
+            )
             # Associates bundle page number with blueprint drawing title by
-            # updating the dictionary with a page:drawing keypair
+            # updating the dictionary with a page:drawing keypair, updates user
+            # on all pages associated in the bundle object
             current_bundle.contents.update(
                 {current_bundle.page_count: current_blueprint.drawing_title}
             )
+            click.echo(
+                f"Pages associated with this bundle: {current_bundle.contents}"
+            )
 
         # Creates output directory structure based upon current bundle
+        # characteristics, then moves the now categorized blueprint into the final
+        # output directory, a combination of the first directory (named
+        # after the building the blueprint depicts), the subdirectory (named after
+        # the bundle's project name and date separated by an underscore), and the
+        # user-specified output directory as outlined in the config file.
+        directory = os.path.join(
+            config.output_scans_location, current_bundle.building
+        )
+        subdirectory = str(
+            str(current_bundle.date) + "_" + current_bundle.project_name
+        )
+        full_output_directory = os.path.join(
+            config.output_scans_location, directory, subdirectory
+        )
+        # Creates directories regardless if they exist
+        os.makedirs(full_output_directory, exist_ok=True)
+# Creates output directory structure based upon current bundle
         # characteristics, then moves the now categorized blueprint into the final
         # output directory, a combination of the first directory (named
         # after the building the blueprint depicts), the subdirectory (named after
@@ -297,9 +381,51 @@ def main():
                 str(current_blueprint.sheet_number + "_" + scan_filename + ".pdf")
             )
         )
+        # Moves the file currently being processed to the final output directory
+        # and renames the file as necessary with a trailing copy number
+        # depending on how many similar filenames exist
+
+        # NOTE TO SELF: Maybe also have this exist_check condition mark the
+        # scan that is a Blueprint class object as "potential duplicate"
+        # somehow for easier future sorting?
+        if os.path.isfile(
+                os.path.join(
+                    full_output_directory,
+                    str(current_blueprint.sheet_number +
+                        "_" + current_blueprint.drawing_title)
+                )
+        ):
+            file_exist_check = True
+            while file_exist_check is True:
+                rename = 0
+                new_scan_name = str(
+                    current_blueprint.drawing_title + "-copy" + str(rename)
+                )
+                rename = rename + 1
+                print("Duplicate file detected, number " + str(rename))
+                if not os.path.isfile(
+                        os.path.join(
+                            full_output_directory,
+                            str(current_blueprint.sheet_number +
+                                "_" + new_scan_name)
+                        )
+                ):
+                    scan_filename = new_scan_name
+                    file_exist_check = False
+        else:
+            scan_filename = current_blueprint.drawing_title
+
+        # noinspection PyUnboundLocalVariable
+        shutil.move(
+            scan, os.path.join(
+                full_output_directory,
+                str(current_blueprint.sheet_number + "_" + scan_filename + ".pdf")
+            )
+        )
 
         # Kills preview process
         subprocess.Popen.kill(file_view)
 
 
-main()
+if __name__ == "__main__":
+    main()
