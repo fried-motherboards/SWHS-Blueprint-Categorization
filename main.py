@@ -322,7 +322,7 @@ def main():
         )
         # Creates directories regardless if they exist
         os.makedirs(full_output_directory, exist_ok=True)
-# Creates output directory structure based upon current bundle
+        # Creates output directory structure based upon current bundle
         # characteristics, then moves the now categorized blueprint into the final
         # output directory, a combination of the first directory (named
         # after the building the blueprint depicts), the subdirectory (named after
@@ -381,50 +381,20 @@ def main():
                 str(current_blueprint.sheet_number + "_" + scan_filename + ".pdf")
             )
         )
-        # Moves the file currently being processed to the final output directory
-        # and renames the file as necessary with a trailing copy number
-        # depending on how many similar filenames exist
-
-        # NOTE TO SELF: Maybe also have this exist_check condition mark the
-        # scan that is a Blueprint class object as "potential duplicate"
-        # somehow for easier future sorting?
-        if os.path.isfile(
-                os.path.join(
-                    full_output_directory,
-                    str(current_blueprint.sheet_number +
-                        "_" + current_blueprint.drawing_title)
-                )
-        ):
-            file_exist_check = True
-            while file_exist_check is True:
-                rename = 0
-                new_scan_name = str(
-                    current_blueprint.drawing_title + "-copy" + str(rename)
-                )
-                rename = rename + 1
-                print("Duplicate file detected, number " + str(rename))
-                if not os.path.isfile(
-                        os.path.join(
-                            full_output_directory,
-                            str(current_blueprint.sheet_number +
-                                "_" + new_scan_name)
-                        )
-                ):
-                    scan_filename = new_scan_name
-                    file_exist_check = False
-        else:
-            scan_filename = current_blueprint.drawing_title
-
-        # noinspection PyUnboundLocalVariable
-        shutil.move(
-            scan, os.path.join(
-                full_output_directory,
-                str(current_blueprint.sheet_number + "_" + scan_filename + ".pdf")
-            )
-        )
 
         # Kills preview process
         subprocess.Popen.kill(file_view)
+    # Logs final bundle data before terminating the program
+    bundle_data = {
+        "UUID": str(current_bundle.bundle_uuid),
+        "Date": str(current_bundle.date),
+        "Building": current_bundle.building,
+        "Pages": current_bundle.page_count,
+        "Contents": current_bundle.contents
+    }
+    print(f"DEBUG BUNDLE LOG PREVIEW {bundle_data}")
+    with open(config.log_file, 'a+') as file:
+        json.dump(bundle_data, file, indent=4)
 
 
 if __name__ == "__main__":
